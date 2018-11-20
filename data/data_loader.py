@@ -9,7 +9,6 @@ import scipy.signal
 import torch
 from torch.utils.data import DataLoader
 from torch.utils.data import Dataset
-import scipy.io.wavfile
 
 windows = {'hamming': scipy.signal.hamming, 'hann': scipy.signal.hann, 'blackman': scipy.signal.blackman,
            'bartlett': scipy.signal.bartlett}
@@ -157,8 +156,8 @@ class SpectrogramDataset(Dataset, SpectrogramParser):
         return spect, transcript
 
     def parse_transcript(self, transcript_path):
-        with open(transcript_path, 'r') as transcript_file:
-            transcript = transcript_file.read().replace('\n', '')
+        # sadly we do not keep transcript_path but the actual transcript
+        transcript = transcript_path.replace('\n', '').upper()
         transcript = list(filter(None, [self.labels_map.get(x) for x in list(transcript)]))
         return transcript
 

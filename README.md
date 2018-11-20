@@ -52,17 +52,12 @@ python transcribe.py --model_path ./models/librispeech_pretrained.pth --audio_pa
 For dataset section refer to original repo [PyTorch Deepspeech](https://github.com/SeanNaren/deepspeech.pytorch)
 
 ### Custom Dataset
-
-To create a custom dataset you must create a CSV file containing the locations of the training data. This has to be in the format of:
-
 ```
-/path/to/audio.wav,/path/to/text.txt
-/path/to/audio2.wav,/path/to/text2.txt
+/path/to/audio1.wav,actual transcript 1
+/path/to/audio2.wav,actual transcript 2
 ...
 ```
-
-The first path is to the audio file, and the second path is to a text file containing the transcript on one line. This can then be used as stated below.
-
+Yes the format is different from original.
 
 ### Merging multiple manifest files
 
@@ -76,62 +71,28 @@ python merge_manifests.py --output_path merged_manifest.csv --merge_dir all_mani
 
 ## Training
 
-```
-python train.py --train_manifest data/train_manifest.csv --val_manifest data/val_manifest.csv
-```
-
-Use `python train.py --help` for more parameters and options.
-
-
-There is also [Visdom](https://github.com/facebookresearch/visdom) support to visualise training. Once a server has been started, to use:
+Assuming tensorboard and [tensorboardx](https://github.com/lanpa/tensorboard-pytorch) support to visualise, point tensorboard to logdir 
 
 ```
-python train.py --visdom
-```
-
-There is also [Tensorboard](https://github.com/lanpa/tensorboard-pytorch) support to visualise training. Follow the instructions to set up. To use:
-
-```
-python train.py --tensorboard --logdir log_dir/ # Make sure the tensorboard instance is made pointing to this log directory
+python train.py --tensorboard --logdir log_dir/ --train_manifest data/train_manifest.csv --val_manifest data/val_manifest.csv
 ```
 
 For both visualisation tools, you can add your own name to the run by changing the `--id` parameter when training.
 
 ### Noise Augmentation/Injection
-
-There is support for two different types of noise; noise augmentation and noise injection.
-
-#### Noise Augmentation
-
-Applies small changes to the tempo and gain when loading audio to increase robustness. To use, use the `--augment` flag when training.
-
-#### Noise Injection
-
-Dynamically adds noise into the training data to increase robustness. To use, first fill a directory up with all the noise files you want to sample from.
-The dataloader will randomly pick samples from this directory.
-
-To enable noise injection, use the `--noise_dir /path/to/noise/dir/` to specify where your noise files are. There are a few noise parameters to tweak, such as
-`--noise_prob` to determine the probability that noise is added, and the `--noise_min`, `--noise_max` parameters to determine the minimum and maximum noise to add in training.
-
-Included is a script to inject noise into an audio file to hear what different noise levels/files would sound like. Useful for curating the noise dataset.
-
+Refer original [readme](https://github.com/SeanNaren/deepspeech.pytorch/tree/v1.1)
 ```
 python noise_inject.py --input_path /path/to/input.wav --noise_path /path/to/noise.wav --output_path /path/to/input_injected.wav --noise_level 0.5 # higher levels means more noise
 ```
 
 ### Checkpoints
 
-Training supports saving checkpoints of the model to continue training from should an error occur or early termination. To enable epoch
-checkpoints use:
-
-```
-python train.py --checkpoint
-```
 
 To enable checkpoints every N batches through the epoch as well as epoch saving:
 
 ```
-python train.py --checkpoint --checkpoint_per_batch N # N is the number of batches to wait till saving a checkpoint at this batch.
+python train.py --checkpoint --checkpoint_per_batch N 
+# N is the number of batches to wait till saving a checkpoint at this batch.
 ```
 
 Note for the batch checkpointing system to work, you cannot change the batch size when loading a checkpointed model from it's original training
@@ -140,7 +101,7 @@ run.
 To continue from a checkpointed model that has been saved:
 
 ```
-python train.py --continue_from models/deepspeech_checkpoint_epoch_N_iter_N.pth.tar
+python train.py --continue_from models/deepspeech_checkpoint_epoch_N_iter_N.pth
 ```
 
 This continues from the same training state as well as recreates the visdom graph to continue from if enabled.
@@ -150,14 +111,11 @@ from the `--continue_from` weights.
 
 ### Choosing batch sizes
 
-Included is a script that can be used to benchmark whether training can occur on your hardware, and the limits on the size of the model/batch
-sizes you can use. To use:
-
+For finding the batch size on the cuda h/w use 
 ```
 python benchmark.py --batch_size 32
 ```
 
-Use the flag `--help` to see other parameters that can be used with the script.
 
 ### Model details
 

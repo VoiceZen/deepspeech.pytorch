@@ -36,11 +36,10 @@ parser.add_argument('--learning_anneal', default=1.1, type=float, help='Annealin
 parser.add_argument('--silent', dest='silent', action='store_true', help='Turn off progress tracking per iteration')
 parser.add_argument('--checkpoint', dest='checkpoint', action='store_true', help='Enables checkpoint saving of model')
 parser.add_argument('--checkpoint_per_batch', default=0, type=int, help='Save checkpoint per batch. 0 means never save')
-parser.add_argument('--visdom', dest='visdom', action='store_true', help='Turn on visdom graphing')
 parser.add_argument('--tensorboard', dest='tensorboard', action='store_true', help='Turn on tensorboard graphing')
 parser.add_argument('--log_dir', default='visualize/deepspeech_final', help='Location of tensorboard log')
 parser.add_argument('--log_params', dest='log_params', action='store_true', help='Log parameter values and gradients')
-parser.add_argument('--id', default='Deepspeech training', help='Identifier for visdom/tensorboard run')
+parser.add_argument('--id', default='Deepspeech training', help='Identifier for tensorboard run')
 parser.add_argument('--save_folder', default='models/', help='Location to save epoch models')
 parser.add_argument('--model_path', default='models/deepspeech_final.pth.tar',
                     help='Location to save best validation model')
@@ -94,13 +93,6 @@ if __name__ == '__main__':
     loss_results, cer_results, wer_results = torch.Tensor(args.epochs), torch.Tensor(args.epochs), torch.Tensor(
         args.epochs)
     best_wer = None
-    if args.visdom:
-        from visdom import Visdom
-
-        viz = Visdom()
-        opts = dict(title=args.id, ylabel='', xlabel='Epoch', legend=['Loss', 'WER', 'CER'])
-        viz_window = None
-        epochs = torch.arange(1, args.epochs + 1)
     if args.tensorboard:
         try:
             os.makedirs(args.log_dir)
@@ -151,18 +143,6 @@ if __name__ == '__main__':
             avg_loss = int(package.get('avg_loss', 0))
             loss_results, cer_results, wer_results = package['loss_results'], package[
                 'cer_results'], package['wer_results']
-            if args.visdom and \
-                            package[
-                                'loss_results'] is not None and start_epoch > 0:  # Add previous scores to visdom graph
-                x_axis = epochs[0:start_epoch]
-                y_axis = torch.stack(
-                    (loss_results[0:start_epoch], wer_results[0:start_epoch], cer_results[0:start_epoch]),
-                    dim=1)
-                viz_window = viz.line(
-                    X=x_axis,
-                    Y=y_axis,
-                    opts=opts,
-                )
             if args.tensorboard and \
                             package[
                                 'loss_results'] is not None and start_epoch > 0:  # Previous scores to tensorboard logs
@@ -322,8 +302,12 @@ if __name__ == '__main__':
             wer, cer = 0, 0
             for x in range(len(target_strings)):
                 transcript, reference = decoded_output[x][0], target_strings[x][0]
-                wer += decoder.wer(transcript, reference) / float(len(reference.split()))
-                cer += decoder.cer(transcript, reference) / float(len(reference))
+                try:
+                    wer += decoder.wer(transcript, reference) / float(len(reference.split()))
+                    cer += decoder.cer(transcript, reference) / float(len(reference))
+                except Exception as e:
+                    print("Problems in error computation for reference '%s'" % reference)
+                    print(e)
             total_cer += cer
             total_wer += wer
 
@@ -342,22 +326,6 @@ if __name__ == '__main__':
               'Average CER {cer:.3f}\t'.format(
             epoch + 1, wer=wer, cer=cer))
 
-        if args.visdom:
-            x_axis = epochs[0:epoch + 1]
-            y_axis = torch.stack((loss_results[0:epoch + 1], wer_results[0:epoch + 1], cer_results[0:epoch + 1]), dim=1)
-            if viz_window is None:
-                viz_window = viz.line(
-                    X=x_axis,
-                    Y=y_axis,
-                    opts=opts,
-                )
-            else:
-                viz.line(
-                    X=x_axis.unsqueeze(0).expand(y_axis.size(1), x_axis.size(0)).transpose(0, 1),  # Visdom fix
-                    Y=y_axis,
-                    win=viz_window,
-                    update='replace',
-                )
         if args.tensorboard:
             values = {
                 'Avg Train Loss': avg_loss,
