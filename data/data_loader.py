@@ -7,17 +7,16 @@ import librosa
 import numpy as np
 import scipy.signal
 import torch
-import torchaudio
 from torch.utils.data import DataLoader
 from torch.utils.data import Dataset
+import scipy.io.wavfile
 
 windows = {'hamming': scipy.signal.hamming, 'hann': scipy.signal.hann, 'blackman': scipy.signal.blackman,
            'bartlett': scipy.signal.bartlett}
 
 
 def load_audio(path):
-    sound, _ = torchaudio.load(path)
-    sound = sound.numpy()
+    sound, sr = librosa.load(path, sr=None)
     if len(sound.shape) > 1:
         if sound.shape[1] == 1:
             sound = sound.squeeze()

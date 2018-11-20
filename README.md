@@ -1,18 +1,8 @@
-[![Stories in Ready](https://badge.waffle.io/SeanNaren/deepspeech.pytorch.png?label=ready&title=Ready)](http://waffle.io/SeanNaren/deepspeech.pytorch)
-# deepspeech.pytorch
+Fork of [PyTorch Deepspeech](https://github.com/SeanNaren/deepspeech.pytorch), as the trained models are for v1.1, the main branch in this repo is v1.1 and that tag is deleted.  
+Does not depend on torchaudio, uses librosa directly.  
 
-Implementation of DeepSpeech2 using [Baidu Warp-CTC](https://github.com/baidu-research/warp-ctc).
-Creates a network based on the [DeepSpeech2](http://arxiv.org/pdf/1512.02595v1.pdf) architecture, trained with the CTC activation function.
+Key points are good implementation of [Baidu Warp-CTC](https://github.com/baidu-research/warp-ctc), good speed with 0.5x on cpu for audio even without openmp.  
 
-## Features
-
-* Train DeepSpeech, configurable RNN types and architectures with multi-gpu support.
-* Language model support using kenlm (WIP right now, currently no instructions to build a LM yet).
-* Multiple dataset downloaders, support for AN4, TED, Voxforge and Librispeech. Datasets can be merged, support for custom datasets included.
-* Noise injection for online training to improve noise robustness.
-* Audio augmentation to improve noise robustness.
-* Easy start/stop capabilities in the event of crash or hard stop during training.
-* Visdom/Tensorboard support for visualising training graphs.
 
 # Installation
 
@@ -27,20 +17,12 @@ git clone https://github.com/SeanNaren/warp-ctc.git
 cd warp-ctc
 mkdir build; cd build
 cmake ..
-make
-export CUDA_HOME="/usr/local/cuda"
+CC=gcc-8 CXX=gcc-8 make
 cd ../pytorch_binding
-python setup.py install
+CC=gcc-8 CXX=gcc-8 python setup.py install
 ```
+in worst cases use, MACOSX_DEPLOYMENT_TARGET=10.9 CC=clang CXX=clang++ python setup.py install. osx use clang which is not gcc so openmp and stdc99 options do not work out of box without additional work. With CC being set, it switches to gcc
 
-Install pytorch audio:
-```
-sudo apt-get install sox libsox-dev libsox-fmt-all
-git clone https://github.com/pytorch/audio.git
-cd audio
-pip install cffi
-python setup.py install
-```
 
 If you want decoding to support beam search with an optional language model, install ctcdecode:
 ```
@@ -55,68 +37,19 @@ pip install -r requirements.txt
 ```
 
 # Usage
+## Download Model  
+```
+mkdir model && cd model
+wget https://github.com/SeanNaren/deepspeech.pytorch/releases/download/v1.1/librispeech_pretrained.pth
+```
+
+## Transcribe  
+```
+python transcribe.py --model_path ./models/librispeech_pretrained.pth --audio_path /vz/wip/ai/deepspeech/training/hindi-splits/1499bf7e-9220-416c-b539-12699f91a14a-sha1-bf8c0f48d53ef4aaee7e1cc59fc5ad257511514f-0.wav
+```
 
 ## Dataset
-
-Currently supports AN4, TEDLIUM, Voxforge and LibriSpeech. Scripts will setup the dataset and create manifest files used in dataloading.
-
-### AN4
-
-To download and setup the an4 dataset run below command in the root folder of the repo:
-
-```
-cd data; python an4.py
-```
-
-### TEDLIUM
-
-You have the option to download the raw dataset file manually or through the script (which will cache it).
-The file is found [here](http://www.openslr.org/resources/19/TEDLIUM_release2.tar.gz).
-
-To download and setup the TEDLIUM_V2 dataset run below command in the root folder of the repo:
-
-```
-cd data; python ted.py # Optionally if you have downloaded the raw dataset file, pass --tar_path /path/to/TEDLIUM_release2.tar.gz
-
-```
-### Voxforge
-
-To download and setup the Voxforge dataset run the below command in the root folder of the repo:
-
-```
-cd data; python voxforge.py
-```
-
-Note that this dataset does not come with a validation dataset or test dataset.
-
-### LibriSpeech
-
-To download and setup the LibriSpeech dataset run the below command in the root folder of the repo:
-
-```
-cd data; python librispeech.py
-```
-
-You have the option to download the raw dataset files manually or through the script (which will cache them as well).
-In order to do this you must create the following folder structure and put the corresponding tar files that you download from [here](http://www.openslr.org/12/).
-
-```
-cd data/
-mkdir LibriSpeech/ # This can be anything as long as you specify the directory path as --target_dir when running the librispeech.py script
-mkdir LibriSpeech/val/
-mkdir LibriSpeech/test/
-mkdir LibriSpeech/train/
-```
-
-Now put the `tar.gz` files in the correct folders. They will now be used in the data pre-processing for librispeech and be removed after
-formatting the dataset.
-
-Optionally you can specify the exact librispeech files you want if you don't want to add all of them. This can be done like below:
-
-```
-cd data/
-python librispeech.py --files_to_use "train-clean-100.tar.gz, train-clean-360.tar.gz,train-other-500.tar.gz, dev-clean.tar.gz,dev-other.tar.gz, test-clean.tar.gz,test-other.tar.gz"
-```
+For dataset section refer to original repo [PyTorch Deepspeech](https://github.com/SeanNaren/deepspeech.pytorch)
 
 ### Custom Dataset
 
@@ -148,6 +81,7 @@ python train.py --train_manifest data/train_manifest.csv --val_manifest data/val
 ```
 
 Use `python train.py --help` for more parameters and options.
+
 
 There is also [Visdom](https://github.com/facebookresearch/visdom) support to visualise training. Once a server has been started, to use:
 
@@ -270,4 +204,4 @@ Pre-trained models can be found under releases [here](https://github.com/SeanNar
 
 ## Acknowledgements
 
-Thanks to [Egor](https://github.com/EgorLakomkin) and [Ryan](https://github.com/ryanleary) for their contributions!
+Thanks to [SeanNaren](https://github.com/SeanNaren) for the original repo and the people he mentioned, [Egor](https://github.com/EgorLakomkin) and [Ryan](https://github.com/ryanleary) for their contributions!

@@ -166,10 +166,10 @@ class GreedyDecoder(Decoder):
         string = ''
         offsets = []
         for i in range(size):
-            char = self.int_to_char[sequence[i]]
+            char = self.int_to_char[sequence[i].item()]
             if char != self.int_to_char[self.blank_index]:
                 # if this char is a repetition and remove_repetitions=true, then skip
-                if remove_repetitions and i != 0 and char == self.int_to_char[sequence[i - 1]]:
+                if remove_repetitions and i != 0 and char == self.int_to_char[sequence[i - 1].item()]:
                     pass
                 elif char == self.labels[self.space_index]:
                     string += ' '
@@ -191,6 +191,7 @@ class GreedyDecoder(Decoder):
             strings: sequences of the model's best guess for the transcription on inputs
             offsets: time step per character predicted
         """
+        import pdb; pdb.set_trace()
         _, max_probs = torch.max(probs.transpose(0, 1), 2)
         strings, offsets = self.convert_to_strings(max_probs.view(max_probs.size(0), max_probs.size(1)), sizes,
                                                    remove_repetitions=True, return_offsets=True)
