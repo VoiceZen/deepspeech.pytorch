@@ -74,7 +74,7 @@ python merge_manifests.py --output_path merged_manifest.csv --merge_dir all_mani
 Assuming tensorboard and [tensorboardx](https://github.com/lanpa/tensorboard-pytorch) support to visualise, point tensorboard to logdir 
 
 ```
-python train.py --tensorboard --logdir log_dir/ --train_manifest data/train_manifest.csv --val_manifest data/val_manifest.csv
+python train.py --tensorboard --log_dir ./log_dir/ --train_manifest /vz/wip/ai/deepspeech/training/lm-audio-samples/pytorch/cv_valid_train.csv --val_manifest /vz/wip/ai/deepspeech/training/lm-audio-samples/pytorch/cv_valid_dev.csv --continue_from ./models/librispeech_pretrained.pth --batch_size 8 --epochs 8
 ```
 
 For both visualisation tools, you can add your own name to the run by changing the `--id` parameter when training.

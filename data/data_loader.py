@@ -9,12 +9,16 @@ import scipy.signal
 import torch
 from torch.utils.data import DataLoader
 from torch.utils.data import Dataset
+# import torchaudio
 
 windows = {'hamming': scipy.signal.hamming, 'hann': scipy.signal.hann, 'blackman': scipy.signal.blackman,
            'bartlett': scipy.signal.bartlett}
 
 
 def load_audio(path):
+    # librosa hangs so original code had moved to torchaudio, sadly on osx torchaudio not running because of sox
+    # sound, _ = torchaudio.load(path)
+    # sound = sound.numpy()
     sound, sr = librosa.load(path, sr=None)
     if len(sound.shape) > 1:
         if sound.shape[1] == 1:
