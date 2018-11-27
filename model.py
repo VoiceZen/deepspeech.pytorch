@@ -6,6 +6,7 @@ import torch.nn as nn
 import torch.nn.functional as F
 from torch.nn.parameter import Parameter
 from torch.autograd import Variable
+from tools.debug_util import PrintLayer, decorate_for_debug
 
 supported_rnns = {
     'lstm': nn.LSTM,
@@ -146,13 +147,14 @@ class DeepSpeech(nn.Module):
         rnn_input_size *= 32
 
         rnns = []
-        rnn = BatchRNN(input_size=rnn_input_size, hidden_size=rnn_hidden_size, rnn_type=rnn_type,
-                       bidirectional=bidirectional, batch_norm=False)
+        rnn = decorate_for_debug(BatchRNN(input_size=rnn_input_size, hidden_size=rnn_hidden_size, rnn_type=rnn_type,
+                       bidirectional=bidirectional, batch_norm=False), "rnn-1")
         rnns.append(('0', rnn))
         for x in range(nb_layers - 1):
             rnn = BatchRNN(input_size=rnn_hidden_size, hidden_size=rnn_hidden_size, rnn_type=rnn_type,
                            bidirectional=bidirectional)
             rnns.append(('%d' % (x + 1), rnn))
+            
         self.rnns = nn.Sequential(OrderedDict(rnns))
         self.lookahead = nn.Sequential(
             # consider adding batch norm?
@@ -160,9 +162,11 @@ class DeepSpeech(nn.Module):
             nn.Hardtanh(0, 20, inplace=True)
         ) if not bidirectional else None
 
+
         fully_connected = nn.Sequential(
-            nn.BatchNorm1d(rnn_hidden_size),
-            nn.Linear(rnn_hidden_size, num_classes, bias=False)
+            decorate_for_debug(nn.BatchNorm1d(rnn_hidden_size), "fc-in"),
+            nn.Linear(rnn_hidden_size, num_classes, bias=False),
+            PrintLayer("fc-out")
         )
         self.fc = nn.Sequential(
             SequenceWise(fully_connected),

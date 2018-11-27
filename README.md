@@ -47,6 +47,11 @@ wget https://github.com/SeanNaren/deepspeech.pytorch/releases/download/v1.1/libr
 ```
 python transcribe.py --model_path ./models/librispeech_pretrained.pth --audio_path /vz/wip/ai/deepspeech/training/hindi-splits/1499bf7e-9220-416c-b539-12699f91a14a-sha1-bf8c0f48d53ef4aaee7e1cc59fc5ad257511514f-0.wav
 ```
+For the gpu box use
+```
+python train.py --tensorboard --log_dir log_dir/ --train_manifest /home/vz/transcribe/gen_1.csv --val_manifest /home/vz/transcribe/valid_1.csv --batch_size 32 --epochs 10 --cuda --continue_from  models/librispeech_pretrained.pth --finetune
+```
+finetune continues from an existing model but ignores the epoch information of the model, look at args.finetune code in train.py
 
 ## Dataset
 For dataset section refer to original repo [PyTorch Deepspeech](https://github.com/SeanNaren/deepspeech.pytorch)

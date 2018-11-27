@@ -7,10 +7,11 @@ import time
 import torch
 from tqdm import tqdm
 from torch.autograd import Variable
-from warpctc_pytorch import CTCLoss
+
 from data.data_loader import AudioDataLoader, SpectrogramDataset, BucketingSampler
 from decoder import GreedyDecoder
 from model import DeepSpeech, supported_rnns
+from tools.debug_util import dfs_freeze, unfreeze_layer
 
 parser = argparse.ArgumentParser(description='DeepSpeech training')
 parser.add_argument('--train_manifest', metavar='DIR',
@@ -58,6 +59,8 @@ parser.add_argument('--no_shuffle', dest='no_shuffle', action='store_true',
                     help='Turn off shuffling and sample from dataset based on sequence length (smallest to largest)')
 parser.add_argument('--no_bidirectional', dest='bidirectional', action='store_false', default=True,
                     help='Turn off bi-directional RNNs, introduces lookahead convolution')
+parser.add_argument('--retrain', dest='retrain', action='store_true', help='retrain only the last layer')
+
 
 torch.manual_seed(123456)
 torch.cuda.manual_seed_all(123456)
@@ -109,9 +112,7 @@ if __name__ == '__main__':
             else:
                 raise
         from tensorboardX import SummaryWriter
-
         tensorboard_writer = SummaryWriter(args.log_dir)
-
     try:
         os.makedirs(save_folder)
     except OSError as e:
@@ -119,6 +120,13 @@ if __name__ == '__main__':
             print('Model Save directory already exists.')
         else:
             raise
+
+    # use the pytorch ctc for 1.0 pytorch, in case it is not available fall back to warp ctc
+    try:
+        from torch.nn import CTCLoss
+    except:
+        from warpctc_pytorch import CTCLoss
+
     criterion = CTCLoss()
 
     avg_loss, start_epoch, start_iter = 0, 0, 0
@@ -128,9 +136,6 @@ if __name__ == '__main__':
         model = DeepSpeech.load_model_package(package)
         labels = DeepSpeech.get_labels(model)
         audio_conf = DeepSpeech.get_audio_conf(model)
-        parameters = model.parameters()
-        optimizer = torch.optim.SGD(parameters, lr=args.lr,
-                                    momentum=args.momentum, nesterov=True)
         if not args.finetune:  # Don't want to restart training
             optimizer.load_state_dict(package['optim_dict'])
             start_epoch = int(package.get('epoch', 1)) - 1  # Index start at 0 for training
@@ -173,9 +178,19 @@ if __name__ == '__main__':
                            rnn_type=supported_rnns[rnn_type],
                            audio_conf=audio_conf,
                            bidirectional=args.bidirectional)
-        parameters = model.parameters()
-        optimizer = torch.optim.SGD(parameters, lr=args.lr,
-                                    momentum=args.momentum, nesterov=True)
+
+    # parameters and optimizer is shared irrespective of how model is built        
+    parameters = model.parameters()
+    if args.retrain:
+        dfs_freeze(model)
+        # unfreeze layer 2 which we will retrain
+        for i, child in enumerate(model.children()):
+            if i == 2:
+                unfreeze_layer(child)
+        parameters = list(filter(lambda p: p.requires_grad, parameters))
+    
+    optimizer = torch.optim.SGD(parameters, lr=args.lr,
+                                momentum=args.momentum, nesterov=True)
 
     decoder = GreedyDecoder(labels)
     train_dataset = SpectrogramDataset(audio_conf=audio_conf, manifest_filepath=args.train_manifest, labels=labels,
@@ -198,6 +213,8 @@ if __name__ == '__main__':
     print(model)
     print("Number of parameters: %d" % DeepSpeech.get_param_size(model))
 
+    print("Number of trainable parameters: %d" % len(parameters))
+
     batch_time = AverageMeter()
     data_time = AverageMeter()
     losses = AverageMeter()
@@ -205,6 +222,7 @@ if __name__ == '__main__':
     for epoch in range(start_epoch, args.epochs):
         model.train()
         end = time.time()
+        epoch_start_time = time.time()
         for i, (data) in enumerate(train_loader, start=start_iter):
             if i == len(train_sampler):
                 break
@@ -233,7 +251,10 @@ if __name__ == '__main__':
                 print("WARNING: received an inf loss, setting loss value to 0")
                 loss_value = 0
             else:
-                loss_value = loss.data[0]
+                try:
+                    loss_value = loss.item() # loss is a tensor for pytorch ctc loss
+                except:
+                    loss_value = loss.data[0] # loss holds data for warp ctc
 
             avg_loss += loss_value
             losses.update(loss_value, inputs.size(0))
@@ -242,7 +263,7 @@ if __name__ == '__main__':
             optimizer.zero_grad()
             loss.backward()
 
-            torch.nn.utils.clip_grad_norm(model.parameters(), args.max_norm)
+            torch.nn.utils.clip_grad_norm_(model.parameters(), args.max_norm)
             # SGD step
             optimizer.step()
 
@@ -269,10 +290,10 @@ if __name__ == '__main__':
             del loss
             del out
         avg_loss /= len(train_sampler)
-
+        
         print('Training Summary Epoch: [{0}]\t'
-              'Average Loss {loss:.3f}\t'.format(
-            epoch + 1, loss=avg_loss))
+              'Average Loss {loss:.3f}\t'
+              'Total Time: {epoch_duration:.3f} seconds\t'.format(epoch + 1, loss=avg_loss, epoch_duration=time.time() - epoch_start_time))
 
         start_iter = 0  # Reset start iteration for next epoch
         total_cer, total_wer = 0, 0

@@ -101,3 +101,8 @@ ENV/
 models/
 data/*.csv
 data/*_dataset/
+
+# tensorflow and other debug log
+.DS_Store
+debug_log/
+log_dir/
