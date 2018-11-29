@@ -45,10 +45,10 @@ def _debug_layer_output(x, layer_name):
         log_dir = '/data/work/voicezen/wip/ai/deepspeech/pt-app/ds-pt/debug_log'
         fname = os.path.join(log_dir, "%s-%s" % (layer_name, str(int(time.time()))))
         y = tensor_to_np(x)
+        np.savetxt("%s.txt" % fname, y, fmt = "%2.5f")
         y = _expensive_softmax(y)
         img = scipy.misc.toimage(y)
         img.save("%s.png" % fname)
-        np.savetxt("%s.txt" % fname, y, fmt = "%2.5f")
 
 def log_tensor(x, identifier):
     _debug_layer_output(x, identifier)

@@ -188,7 +188,8 @@ if __name__ == '__main__':
             if i == 2:
                 unfreeze_layer(child)
         parameters = list(filter(lambda p: p.requires_grad, parameters))
-    
+        #optimizer = torch.optim.Adam(parameters, lr=args.lr)
+    #else:
     optimizer = torch.optim.SGD(parameters, lr=args.lr,
                                 momentum=args.momentum, nesterov=True)
 
@@ -213,7 +214,6 @@ if __name__ == '__main__':
     print(model)
     print("Number of parameters: %d" % DeepSpeech.get_param_size(model))
 
-    print("Number of trainable parameters: %d" % len(parameters))
 
     batch_time = AverageMeter()
     data_time = AverageMeter()
@@ -238,10 +238,10 @@ if __name__ == '__main__':
 
             out = model(inputs)
             out = out.transpose(0, 1)  # TxNxH
-
             seq_length = out.size(0)
             sizes = Variable(input_percentages.mul_(int(seq_length)).int(), requires_grad=False)
-
+            decoded_output, _ = decoder.decode(out.data, sizes)
+            print("train.py %s " % decoded_output)
             loss = criterion(out, targets, sizes, target_sizes)
             loss = loss / inputs.size(0)  # average the loss by minibatch
 
@@ -323,6 +323,7 @@ if __name__ == '__main__':
             wer, cer = 0, 0
             for x in range(len(target_strings)):
                 transcript, reference = decoded_output[x][0], target_strings[x][0]
+                print("%s %s" % (transcript, reference))
                 try:
                     wer += decoder.wer(transcript, reference) / float(len(reference.split()))
                     cer += decoder.cer(transcript, reference) / float(len(reference))
@@ -356,9 +357,13 @@ if __name__ == '__main__':
             tensorboard_writer.add_scalars(args.id, values, epoch + 1)
             if args.log_params:
                 for tag, value in model.named_parameters():
-                    tag = tag.replace('.', '/')
-                    tensorboard_writer.add_histogram(tag, to_np(value), epoch + 1)
-                    tensorboard_writer.add_histogram(tag + '/grad', to_np(value.grad), epoch + 1)
+                    try:
+                        tag = tag.replace('.', '/')
+                        tensorboard_writer.add_histogram(tag, to_np(value), epoch + 1)
+                        if value.grad is not None:
+                            tensorboard_writer.add_histogram(tag + '/grad', to_np(value.grad), epoch + 1)
+                    except Exception as exc:
+                        print(exc)
         if args.checkpoint:
             file_path = '%s/deepspeech_%d.pth.tar' % (save_folder, epoch + 1)
             torch.save(DeepSpeech.serialize(model, optimizer=optimizer, epoch=epoch, loss_results=loss_results,
